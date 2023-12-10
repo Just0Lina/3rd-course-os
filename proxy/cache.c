@@ -1,22 +1,38 @@
 #include "cache.h"
+pthread_mutex_t cache_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 void initializeCache(Cache* cache) { cache->count = 0; }
 
 MemStruct* getDataFromCache(Cache* cache, const char* url) {
+  pthread_mutex_lock(&cache_mutex);
   for (int i = 0; i < cache->count; ++i) {
     if (strcmp(cache->cache[i].url, url) == 0) {
       cache->cache[i].count++;
+      pthread_mutex_unlock(&cache_mutex);
       return cache->cache[i].data;
     }
   }
+  pthread_mutex_unlock(&cache_mutex);
   return NULL;
+}
+void destroyCache(Cache* cache) {
+  pthread_mutex_lock(&cache_mutex);
+
+  if (cache == NULL) {
+    return;
+  }
+
+  for (int i = 0; i < cache->count; ++i) {
+    free(cache->cache[i].data->memory);
+    free(cache->cache[i].data);
+  }
+
+  free(cache);
+  pthread_mutex_unlock(&cache_mutex);
 }
 
 void addToCache(Cache* cache, const char* url, MemStruct* data) {
-  // printf("%d count \n", cache->count);
-  // printf(ANSI_COLOR_GREEN "Add to cache url : |%s| \n" ANSI_COLOR_RESET,
-  // url);
-  //   printf(" data %s \n", data);
+  pthread_mutex_lock(&cache_mutex);
 
   if (cache->count < MAX_CACHE_SIZE) {
     printf(ANSI_COLOR_YELLOW
@@ -41,8 +57,9 @@ void addToCache(Cache* cache, const char* url, MemStruct* data) {
       }
     }
     strcpy(cache->cache[minInd].url, url);
-    // free(cache->cache[minInd].data);
+    free(cache->cache[minInd].data);
     cache->cache[minInd].data = data;
     cache->cache[minInd].count = 1;
   }
+  pthread_mutex_unlock(&cache_mutex);
 }

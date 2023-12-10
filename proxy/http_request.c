@@ -40,6 +40,8 @@ MemStruct* sendHTTPRequest(const char* url) {
     curl_easy_cleanup(curl);
   }
   free(httpURL);
+  // printf(ANSI_COLOR_MAGENTA "Size: %s%ld!\n" ANSI_COLOR_RESET, chunk->memory,
+  //        chunk->size);
   return chunk;
 }
 

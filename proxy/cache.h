@@ -1,3 +1,5 @@
+#ifndef CACHE_H
+#define CACHE_H
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,6 +15,8 @@ typedef struct {
   int count;
 } CacheItem;
 
+extern pthread_mutex_t cache_mutex;
+
 typedef struct {
   CacheItem cache[MAX_CACHE_SIZE];
   int count;
@@ -23,3 +27,5 @@ void initializeCache(Cache* cache);
 MemStruct* getDataFromCache(Cache* cache, const char* url);
 
 void addToCache(Cache* cache, const char* url, MemStruct* data);
+void destroyCache(Cache* cache);
+#endif /* CACHE_H */
