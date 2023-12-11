@@ -3,8 +3,7 @@
 #include <pthread.h>
 #include <semaphore.h>
 
-// pthread_mutex_t cacheMutex = PTHREAD_MUTEX_INITIALIZER;
-sem_t thread_semaphore;  // Definition of thread_semaphore
+sem_t thread_semaphore;
 
 typedef struct {
   char* url;
@@ -59,20 +58,6 @@ void* fetchAndCacheData(void* arg) {
 }
 
 void send_header_with_data(int client_socket, MemStruct* data2) {
-  // const char* http_response =
-  //     "HTTP/1.1 200 OK\r\n"
-  //     "Content-Type: text/html\r\n";
-
-  // char contentLengthHeader[100];
-  // sprintf(contentLengthHeader, "Content-Length: %ld\r\n", data2->size);
-  // printf(ANSI_COLOR_GREEN "Length: %d!\n" ANSI_COLOR_RESET, data2->size);
-
-  // size_t http_response_len = strlen(http_response);
-  // send(client_socket, http_response, http_response_len, 0);
-  // send(client_socket, contentLengthHeader, strlen(contentLengthHeader), 0);
-  // send(client_socket, "\r\n", strlen("\r\n"), 0);
-  // send(client_socket, data2->memory, data2->size, 0);
-  // send(client_socket, "\r\n", strlen("\r\n"), 0);
   const char* http_response =
       "HTTP/1.1 200 OK\r\n"
       "Content-Type: text/html\r\n";
@@ -82,30 +67,18 @@ void send_header_with_data(int client_socket, MemStruct* data2) {
 
   const char* empty_line = "\r\n";
 
-  // Calculate the total length of the complete response
   size_t total_length = strlen(http_response) + strlen(contentLengthHeader) +
                         strlen(empty_line) + data2->size + strlen(empty_line);
 
-  // Allocate memory for the complete response
-  char* complete_response =
-      (char*)malloc(total_length + 1);  // +1 for null terminator
+  char* complete_response = (char*)malloc(total_length + 1);
   if (complete_response == NULL) {
-    // Handle allocation failure
     return;
   }
-  snprintf(complete_response, total_length + 1, "%s%s%s%s%s",
-           (char*)http_response, (char*)contentLengthHeader, (char*)empty_line,
-           (char*)data2->memory, (char*)empty_line);
 
-  // Construct the complete response
-  // snprintf(complete_response, total_length + 1, "%s%s%s%s%s%s",
-  // http_response,
-  //          contentLengthHeader, empty_line, data2->memory, empty_line);
+  snprintf(complete_response, total_length + 1, "%s%s%s%s%s%s", http_response,
+           contentLengthHeader, empty_line, data2->memory, empty_line);
 
-  // Send the complete response
   send(client_socket, complete_response, total_length, 0);
-
-  // Free the allocated memory
   free(complete_response);
 }
 
@@ -186,6 +159,7 @@ char* extractReference(char* buffer, char* reference, char endChar) {
 }
 
 char* get_refer_url(char* buffer) {
+  printf("%s\n", buffer);
   char* url = extractReference(buffer, "Host: ", '\n');
   char* reference = "localhost";
 

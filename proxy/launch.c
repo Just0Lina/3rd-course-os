@@ -3,7 +3,6 @@
 #include <unistd.h>
 
 #include "proxy.h"
-// Cache cache;
 
 int server_socket;
 

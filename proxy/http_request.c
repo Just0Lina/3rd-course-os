@@ -25,7 +25,7 @@ MemStruct* sendHTTPRequest(const char* url) {
   printf(ANSI_COLOR_BLUE "Https url: |%s|\n" ANSI_COLOR_RESET, httpURL);
   MemStruct* chunk = malloc(sizeof(MemStruct*));
 
-  chunk->memory = malloc(1);  // Инициализация для хранения данных
+  chunk->memory = malloc(1);
   chunk->size = 0;
   curl = curl_easy_init();
   if (curl) {
@@ -40,8 +40,6 @@ MemStruct* sendHTTPRequest(const char* url) {
     curl_easy_cleanup(curl);
   }
   free(httpURL);
-  // printf(ANSI_COLOR_MAGENTA "Size: %s%ld!\n" ANSI_COLOR_RESET, chunk->memory,
-  //        chunk->size);
   return chunk;
 }
 

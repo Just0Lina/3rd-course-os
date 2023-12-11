@@ -57,7 +57,6 @@ void addToCache(Cache* cache, const char* url, MemStruct* data) {
       }
     }
     strcpy(cache->cache[minInd].url, url);
-    free(cache->cache[minInd].data);
     cache->cache[minInd].data = data;
     cache->cache[minInd].count = 1;
   }
