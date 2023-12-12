@@ -6,8 +6,9 @@
 sem_t thread_semaphore;
 
 typedef struct {
-  char* url;
+  char* request;
   Cache* cache;
+  int client_socket;
 } ThreadArgs;
 
 int socket_init() {
@@ -45,41 +46,85 @@ void binding_and_listening(int server_socket, struct sockaddr_in* server_addr) {
          PORT);
 }
 
+void add_response(MemStruct* record, char* resp, unsigned long cur_position,
+                  unsigned long resp_size) {
+  memcpy(record->memory + cur_position, resp, resp_size);
+}
+
+void add_size(MemStruct* record, ssize_t size) { record->size = size; }
+
 void* fetchAndCacheData(void* arg) {
   ThreadArgs* args = (ThreadArgs*)arg;
   Cache* cache = args->cache;
-  char* url = args->url;
-  MemStruct* chunk = sendHTTPRequest(url);
-  addToCache(cache, url, chunk);
-  printf("Data added to cache + %d\n\n", cache->count);
+  char* request = args->request;
+  int client_socket = args->client_socket;
+  MemStruct* record = malloc(sizeof(MemStruct));
+  record->memory = (char*)calloc(CACHE_BUFFER_SIZE, sizeof(char));
+  record->size = 0;
+  unsigned char host[50];
+  const unsigned char* host_result =
+      memccpy(host, strstr((char*)request, "Host:") + 6, '\r', sizeof(host));
+  host[host_result - host - 1] = '\0';
+  int dest_socket = connect_to_remote((char*)host);
+  if (dest_socket == -1) {
+    close(client_socket);
+  }
+  printf(ANSI_COLOR_GREEN
+         "Create new connection with remote server\n" ANSI_COLOR_RESET);
+
+  ssize_t bytes_sent = write(dest_socket, request, strlen(request));
+  if (bytes_sent == -1) {
+    printf(ANSI_COLOR_RED
+           "Error while sending request to remote server\n" ANSI_COLOR_RESET);
+    close(client_socket);
+    close(dest_socket);
+    return NULL;
+  }
+
+  printf(ANSI_COLOR_GREEN
+         "Send request to remote server, len = %ld\n" ANSI_COLOR_RESET,
+         bytes_sent);
+
+  char* buffer = calloc(BUFFER_SIZE, sizeof(char));
+  ssize_t bytes_read, all_bytes_read = 0;
+  while ((bytes_read = read(dest_socket, buffer, BUFFER_SIZE)) > 0) {
+    // printf(ANSI_COLOR_GREEN
+    //        "\tRead response from remote server, len = %d\n" ANSI_COLOR_RESET,
+    //        bytes_read);
+    bytes_sent = write(client_socket, buffer, bytes_read);
+    if (bytes_sent == -1) {
+      printf(ANSI_COLOR_RED
+             "Error while sending data to client\n" ANSI_COLOR_RESET);
+
+      close(client_socket);
+      close(dest_socket);
+      return NULL;
+    } else {
+      // printf(ANSI_COLOR_GREEN
+      //        "\tWrite response to client, len = %d\n" ANSI_COLOR_RESET,
+      //        bytes_sent);
+      add_response(record, buffer, all_bytes_read, bytes_read);
+      // printf(ANSI_COLOR_GREEN
+      //        "\t\tCached part of response, len = %d\n" ANSI_COLOR_RESET,
+      //        bytes_sent);
+    }
+    all_bytes_read += bytes_read;
+  }
+  add_size(record, all_bytes_read);
+  addToCache(cache, (const char*)host, record);
+
+  close(client_socket);
+  close(dest_socket);
+  free(buffer);
+
+  printf("Data added to cache with size %ld\n\n", record->size);
   sem_post(&thread_semaphore);
 
   return NULL;
 }
 
 void send_header_with_data(int client_socket, MemStruct* data2) {
-  const char* http_response =
-      "HTTP/1.1 200 OK\r\n"
-      "Content-Type: text/html\r\n";
-
-  char contentLengthHeader[100];
-  sprintf(contentLengthHeader, "Content-Length: %ld\r\n", data2->size);
-
-  const char* empty_line = "\r\n";
-
-  size_t total_length = strlen(http_response) + strlen(contentLengthHeader) +
-                        strlen(empty_line) + data2->size + strlen(empty_line);
-
-  char* complete_response = (char*)malloc(total_length + 1);
-  if (complete_response == NULL) {
-    return;
-  }
-
-  snprintf(complete_response, total_length + 1, "%s%s%s%s%s%s", http_response,
-           contentLengthHeader, empty_line, data2->memory, empty_line);
-
-  send(client_socket, complete_response, total_length, 0);
-  free(complete_response);
+  send(client_socket, data2->memory, data2->size, 0);
 }
 
 void handle_client_request(int client_socket, Cache* cache) {
@@ -116,7 +161,9 @@ void handle_client_request(int client_socket, Cache* cache) {
       pthread_t tid;
       ThreadArgs args;
       args.cache = cache;
-      args.url = url;
+      args.request = buffer;
+      args.client_socket = client_socket;
+
       int err = pthread_create(&tid, NULL, fetchAndCacheData, &args);
       if (err != 0) {
         fprintf(stderr, "Error creating thread: %s\n", strerror(err));
@@ -159,7 +206,6 @@ char* extractReference(char* buffer, char* reference, char endChar) {
 }
 
 char* get_refer_url(char* buffer) {
-  printf("%s\n", buffer);
   char* url = extractReference(buffer, "Host: ", '\n');
   char* reference = "localhost";
 
@@ -172,6 +218,5 @@ char* get_refer_url(char* buffer) {
       url = extractReference(buffer, "GET /", 'H');
     }
   }
-
   return url;
 }

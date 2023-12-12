@@ -1,53 +1,31 @@
 #include "http_request.h"
 
-static size_t WriteMemoryCallback(void* contents, size_t size, size_t nmemb,
-                                  void* userp) {
-  size_t realsize = size * nmemb;
-  struct MemoryStruct* mem = (struct MemoryStruct*)userp;
+int connect_to_remote(char* host) {
+  struct addrinfo hints, *res0;
+  memset(&hints, 0, sizeof hints);
+  hints.ai_family = AF_UNSPEC;
+  hints.ai_socktype = SOCK_STREAM;
 
-  mem->memory = realloc(mem->memory, mem->size + realsize + 1);
-  if (mem->memory == NULL) {
-    printf("Not enough memory (realloc returned NULL)\n");
-    return 0;
+  int status = getaddrinfo((char*)host, "http", &hints, &res0);
+  if (status != 0) {
+    freeaddrinfo(res0);
+    return -1;
+  }
+  int dest_socket =
+      socket(res0->ai_family, res0->ai_socktype, res0->ai_protocol);
+  if (dest_socket == -1) {
+    printf(ANSI_COLOR_RED
+           "Error while creating remote server socket\n" ANSI_COLOR_RESET);
+    return -1;
   }
 
-  memcpy(&(mem->memory[mem->size]), contents, realsize);
-  mem->size += realsize;
-  mem->memory[mem->size] = 0;
-
-  return realsize;
-}
-
-MemStruct* sendHTTPRequest(const char* url) {
-  CURL* curl;
-  CURLcode res;
-  char* httpURL = prependHTTPS(url);
-  printf(ANSI_COLOR_BLUE "Https url: |%s|\n" ANSI_COLOR_RESET, httpURL);
-  MemStruct* chunk = malloc(sizeof(MemStruct*));
-
-  chunk->memory = malloc(1);
-  chunk->size = 0;
-  curl = curl_easy_init();
-  if (curl) {
-    curl_easy_setopt(curl, CURLOPT_URL, httpURL);
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void*)chunk);
-    res = curl_easy_perform(curl);
-    if (res != CURLE_OK) {
-      fprintf(stderr, "curl_easy_perform() failed: %s\n",
-              curl_easy_strerror(res));
-    }
-    curl_easy_cleanup(curl);
+  int err = connect(dest_socket, res0->ai_addr, res0->ai_addrlen);
+  if (err == -1) {
+    printf(ANSI_COLOR_RED
+           "Error while connecting to remote server socket\n" ANSI_COLOR_RESET);
+    close(dest_socket);
+    freeaddrinfo(res0);
+    return -1;
   }
-  free(httpURL);
-  return chunk;
-}
-
-char* prependHTTPS(const char* url) {
-  char* newURL = malloc(strlen(url) + strlen("https://"));
-  if (newURL != NULL) {
-    strcpy(newURL, "https://");
-    strcat(newURL, url);
-  }
-  return newURL;
+  return dest_socket;
 }

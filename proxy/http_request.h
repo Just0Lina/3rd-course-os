@@ -7,15 +7,21 @@
 #define ANSI_COLOR_MAGENTA "\x1b[35m"
 #define ANSI_COLOR_CYAN "\x1b[36m"
 #define ANSI_COLOR_RESET "\x1b[0m"
+#include <arpa/inet.h>
 #include <curl/curl.h>
+#include <netdb.h>
+#include <netinet/in.h>
 #include <pthread.h>
+#include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
 typedef struct MemoryStruct {
   char* memory;
   size_t size;
 } MemStruct;
 
-MemStruct* sendHTTPRequest(const char* url);
-char* prependHTTPS(const char* url);
+int connect_to_remote(char* host);

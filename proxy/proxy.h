@@ -13,7 +13,7 @@
 extern sem_t thread_semaphore;
 
 #define PORT 80
-#define BUFFER_SIZE 1024
+#define BUFFER_SIZE 4096
 char* get_refer_url(char* buffer);
 void handle_client_request(int client_socket, Cache* cache);
 int socket_init();
