@@ -23,7 +23,7 @@ int socket_init() {
   return server_socket;
 }
 
-void set_params(struct sockaddr_in* server_addr) {  // Настройка адреса сервера
+void set_params(struct sockaddr_in* server_addr) {
   memset(server_addr, 0, sizeof(*server_addr));
   server_addr->sin_family = AF_INET;
   server_addr->sin_addr.s_addr = INADDR_ANY;
@@ -100,10 +100,23 @@ void* fetchAndCacheData(void* arg) {
       close(dest_socket);
       return NULL;
     } else {
+      if (strstr(buffer, "ERROR") != NULL ||
+          strstr(buffer, "Not Found") != NULL) {
+        free(buffer);
+        close(client_socket);
+        close(dest_socket);
+        printf(ANSI_COLOR_RED
+               "Server returned error, not saving to cache\n" ANSI_COLOR_RESET);
+        return record;
+      } else {
+        // No error message found, proceed with caching
+        add_response(record, buffer, all_bytes_read, bytes_read);
+        // ... (rest of the caching logic)
+      }
       // printf(ANSI_COLOR_GREEN
       //        "\tWrite response to client, len = %d\n" ANSI_COLOR_RESET,
       //        bytes_sent);
-      add_response(record, buffer, all_bytes_read, bytes_read);
+      // add_response(record, buffer, all_bytes_read, bytes_read);
       // printf(ANSI_COLOR_GREEN
       //        "\t\tCached part of response, len = %d\n" ANSI_COLOR_RESET,
       //        bytes_sent);
@@ -111,7 +124,8 @@ void* fetchAndCacheData(void* arg) {
     all_bytes_read += bytes_read;
   }
   add_size(record, all_bytes_read);
-  addToCache(cache, (const char*)host, record);
+
+  addToCache(cache, get_refer_url(request), record);
 
   close(client_socket);
   close(dest_socket);
@@ -137,6 +151,7 @@ void handle_client_request(int client_socket, Cache* cache) {
     close(client_socket);
     return;
   }
+  printf(buffer);
 
   char* url = get_refer_url(buffer);
 
@@ -169,9 +184,20 @@ void handle_client_request(int client_socket, Cache* cache) {
         fprintf(stderr, "Error creating thread: %s\n", strerror(err));
         return;
       }
-      pthread_join(tid, NULL);
+      void* result;
+      MemStruct* data2;
+      pthread_join(tid, &result);
+      if (result == NULL) {
+        data2 = getDataFromCache(cache, url);
 
-      MemStruct* data2 = getDataFromCache(cache, url);
+        // Thread function encountered an error
+        // Handle the error condition
+      } else {
+        // Thread function completed successfully, result points to the returned
+        // data
+        data2 = (MemStruct*)result;
+        // Process the returned record
+      }
 
       printf(ANSI_COLOR_MAGENTA "Sending data to client...\n" ANSI_COLOR_RESET);
 
@@ -206,17 +232,17 @@ char* extractReference(char* buffer, char* reference, char endChar) {
 }
 
 char* get_refer_url(char* buffer) {
-  char* url = extractReference(buffer, "Host: ", '\n');
-  char* reference = "localhost";
+  char* url = extractReference(buffer, "GET ", 'H');
+  // char* reference = "localhost";
 
-  if (strstr(url, reference) != NULL) {
-    char* url2 = extractReference(buffer, "Sec-Fetch-Dest: ", '\n');
-    char* doc = "document";
-    if (strstr(url2, doc) == NULL) {
-      url = extractReference(buffer, "localhost/", '\n');
-    } else {
-      url = extractReference(buffer, "GET /", 'H');
-    }
-  }
+  // if (strstr(url, reference) != NULL) {
+  //   char* url2 = extractReference(buffer, "Sec-Fetch-Dest: ", '\n');
+  //   char* doc = "document";
+  //   if (strstr(url2, doc) == NULL) {
+  //     url = extractReference(buffer, "localhost/", '\n');
+  //   } else {
+  //     url = extractReference(buffer, "GET /", 'H');
+  //   }
+  // }
   return url;
 }
