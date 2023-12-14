@@ -8,7 +8,7 @@
 
 #define MAX_CACHE_SIZE 1000
 #define MAX_URL_LEN 256
-#define CACHE_BUFFER_SIZE (1024 * 1024 * 64) * 4  // 64 * 4 MB
+#define CACHE_BUFFER_SIZE (1024 * 1024 * 1024)  // 1024 MB
 
 typedef struct {
   char url[MAX_URL_LEN];
@@ -23,7 +23,7 @@ typedef struct {
   int count;
 } Cache;
 
-void initializeCache(Cache* cache);
+void initialize_cache(Cache* cache);
 
 MemStruct* getDataFromCache(Cache* cache, const char* url);
 

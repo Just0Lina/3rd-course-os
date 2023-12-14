@@ -45,6 +45,11 @@ queue_t *queue_init(int max_count) {
     free(q);
     abort();
   }
+  if (sem_init(&q->queue_mutex, 0, 1) != 0) {
+    perror("Failed to initialize queue_mutex semaphore");
+    free(q);
+    abort();
+  }
   err = pthread_create(&q->qmonitor_tid, NULL, qmonitor, q);
 
   return q;
@@ -54,6 +59,7 @@ void queue_destroy(queue_t *q) {
   if (q) {
     sem_destroy(&q->semaphore_items);
     sem_destroy(&q->semaphore_spaces);
+    sem_destroy(&q->queue_mutex);
     while (q->first) {
       qnode_t *temp = q->first;
       q->first = q->first->next;
@@ -70,6 +76,7 @@ int queue_add(queue_t *q, int val) {
   assert(q->count <= q->max_count);
 
   sem_wait(&q->semaphore_spaces);
+  sem_wait(&q->queue_mutex);
 
   qnode_t *new = (qnode_t *)malloc(sizeof(qnode_t));
   if (!new) {
@@ -89,9 +96,9 @@ int queue_add(queue_t *q, int val) {
 
   q->count++;
   q->add_count++;
+  sem_post(&q->queue_mutex);
 
   sem_post(&q->semaphore_items);
-
   return 1;
 }
 
@@ -101,6 +108,7 @@ int queue_get(queue_t *q, int *val) {
   assert(q->count >= 0);
 
   sem_wait(&q->semaphore_items);
+  sem_wait(&q->queue_mutex);
 
   qnode_t *tmp = q->first;
 
@@ -110,9 +118,8 @@ int queue_get(queue_t *q, int *val) {
   free(tmp);
   q->count--;
   q->get_count++;
-
+  sem_post(&q->queue_mutex);
   sem_post(&q->semaphore_spaces);
-
   return 1;
 }
 

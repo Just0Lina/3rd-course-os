@@ -22,6 +22,7 @@ typedef struct _Queue {
   pthread_t qmonitor_tid;
   sem_t semaphore_items;
   sem_t semaphore_spaces;
+  sem_t queue_mutex;
   int count;
   int max_count;
 

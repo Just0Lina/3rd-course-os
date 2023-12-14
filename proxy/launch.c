@@ -27,7 +27,7 @@ int main() {
   set_params(&server_addr);
   binding_and_listening(server_socket, &server_addr);
   Cache *cache = (Cache *)malloc(sizeof(Cache));
-  initializeCache(cache);
+  initialize_cache(cache);
 
   while (1) {
     client_socket = accept(server_socket, (struct sockaddr *)&client_addr,

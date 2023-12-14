@@ -41,6 +41,7 @@ void binding_and_listening(int server_socket, struct sockaddr_in* server_addr) {
     perror("Error listening on socket");
     exit(EXIT_FAILURE);
   }
+
   printf(ANSI_COLOR_GREEN
          "Proxy server started. Listening on port %d...\n" ANSI_COLOR_RESET,
          PORT);
@@ -78,6 +79,8 @@ void* fetchAndCacheData(void* arg) {
            "Error while sending request to remote server\n" ANSI_COLOR_RESET);
     close(client_socket);
     close(dest_socket);
+    sem_post(&thread_semaphore);
+
     return NULL;
   }
 
@@ -95,24 +98,33 @@ void* fetchAndCacheData(void* arg) {
     if (bytes_sent == -1) {
       printf(ANSI_COLOR_RED
              "Error while sending data to client\n" ANSI_COLOR_RESET);
+      // send_header_with_data(client_socket, record);
 
       close(client_socket);
       close(dest_socket);
+      sem_post(&thread_semaphore);
+
       return NULL;
     } else {
+      add_response(record, buffer, all_bytes_read, bytes_read);
+
       if (strstr(buffer, "ERROR") != NULL ||
           strstr(buffer, "Not Found") != NULL) {
+        printf(ANSI_COLOR_RED
+               "Server returned error, not saving to cache\n" ANSI_COLOR_RESET);
+        send_header_with_data(client_socket, record);
         free(buffer);
         close(client_socket);
         close(dest_socket);
-        printf(ANSI_COLOR_RED
-               "Server returned error, not saving to cache\n" ANSI_COLOR_RESET);
-        return record;
-      } else {
-        // No error message found, proceed with caching
-        add_response(record, buffer, all_bytes_read, bytes_read);
-        // ... (rest of the caching logic)
+        sem_post(&thread_semaphore);
+
+        return NULL;
       }
+      // } else {
+      //   // No error message found, proceed with caching
+      //   add_response(record, buffer, all_bytes_read, bytes_read);
+      //   // ... (rest of the caching logic)
+      // }
       // printf(ANSI_COLOR_GREEN
       //        "\tWrite response to client, len = %d\n" ANSI_COLOR_RESET,
       //        bytes_sent);
@@ -127,18 +139,24 @@ void* fetchAndCacheData(void* arg) {
 
   addToCache(cache, get_refer_url(request), record);
 
-  close(client_socket);
-  close(dest_socket);
-  free(buffer);
-
   printf("Data added to cache with size %ld\n\n", record->size);
   sem_post(&thread_semaphore);
 
+  printf(ANSI_COLOR_MAGENTA "Sending data to client...\n" ANSI_COLOR_RESET);
+
+  send_header_with_data(client_socket, record);
+  printf(ANSI_COLOR_MAGENTA "Data sent to client.\n" ANSI_COLOR_RESET);
+
+  close(client_socket);
+  close(dest_socket);
+  free(buffer);
   return NULL;
 }
 
 void send_header_with_data(int client_socket, MemStruct* data2) {
-  send(client_socket, data2->memory, data2->size, 0);
+  ssize_t send_bytes = write(client_socket, data2->memory, data2->size);
+
+  // send(client_socket, data2->memory, data2->size, 0);
 }
 
 void handle_client_request(int client_socket, Cache* cache) {
@@ -178,41 +196,37 @@ void handle_client_request(int client_socket, Cache* cache) {
       args.cache = cache;
       args.request = buffer;
       args.client_socket = client_socket;
-
-      int err = pthread_create(&tid, NULL, fetchAndCacheData, &args);
+      printf(ANSI_COLOR_BLUE "Initing new thread\n" ANSI_COLOR_RESET);
+      int err = pthread_create(&tid, NULL, &fetchAndCacheData, &args);
       if (err != 0) {
         fprintf(stderr, "Error creating thread: %s\n", strerror(err));
         return;
       }
-      void* result;
-      MemStruct* data2;
-      pthread_join(tid, &result);
-      if (result == NULL) {
-        data2 = getDataFromCache(cache, url);
+      // void* result;
+      // MemStruct* data2;
+      // pthread_join(tid, &result);
+      // if (result == NULL) {
+      //   data2 = getDataFromCache(cache, url);
 
-        // Thread function encountered an error
-        // Handle the error condition
-      } else {
-        // Thread function completed successfully, result points to the returned
-        // data
-        data2 = (MemStruct*)result;
-        // Process the returned record
-      }
-
-      printf(ANSI_COLOR_MAGENTA "Sending data to client...\n" ANSI_COLOR_RESET);
-
-      send_header_with_data(client_socket, data2);
-      printf(ANSI_COLOR_MAGENTA "Data sent to client.\n" ANSI_COLOR_RESET);
+      //   // Thread function encountered an error
+      //   // Handle the error condition
+      // } else {
+      //   // Thread function completed successfully, result points to the
+      //   returned
+      //   // data
+      //   data2 = (MemStruct*)result;
+      //   // Process the returned record
+      // }
     }
 
   } else {
     printf(ANSI_COLOR_RED
            "URL is NULL. Sending default response...\n" ANSI_COLOR_RESET);
-    send_header_with_data(client_socket, chunk);
+    // send_header_with_data(client_socket, chunk);
   }
-  printf(ANSI_COLOR_YELLOW "Closing client socket...\n" ANSI_COLOR_RESET);
+  // printf(ANSI_COLOR_YELLOW "Closing client socket...\n" ANSI_COLOR_RESET);
 
-  close(client_socket);
+  // close(client_socket);
 }
 
 char* extractReference(char* buffer, char* reference, char endChar) {
