@@ -9,13 +9,14 @@
 #include <unistd.h>
 
 #include "cache.h"
-#define MAX_USERS_COUNT 10
+#define MAX_USERS_COUNT 5
 extern sem_t thread_semaphore;
 
 #define PORT 80
 #define BUFFER_SIZE 4096
 char* get_refer_url(char* buffer);
 void handle_client_request(int client_socket, Cache* cache);
+char* extractReference(char* buffer, char* reference, char endChar);
 int socket_init();
 void set_params(struct sockaddr_in* server_addr);
 void binding_and_listening(int server_socket, struct sockaddr_in* server_addr);

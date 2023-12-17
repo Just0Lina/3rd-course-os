@@ -1,5 +1,4 @@
 #include "http_request.h"
-
 int connect_to_remote(char* host) {
   struct addrinfo hints, *res0;
   memset(&hints, 0, sizeof hints);
@@ -8,14 +7,15 @@ int connect_to_remote(char* host) {
 
   int status = getaddrinfo((char*)host, "http", &hints, &res0);
   if (status != 0) {
-    freeaddrinfo(res0);
     return -1;
   }
+
   int dest_socket =
       socket(res0->ai_family, res0->ai_socktype, res0->ai_protocol);
   if (dest_socket == -1) {
     printf(ANSI_COLOR_RED
            "Error while creating remote server socket\n" ANSI_COLOR_RESET);
+    freeaddrinfo(res0);  // Potential leak
     return -1;
   }
 
@@ -27,5 +27,8 @@ int connect_to_remote(char* host) {
     freeaddrinfo(res0);
     return -1;
   }
+
+  freeaddrinfo(res0);
+
   return dest_socket;
 }
