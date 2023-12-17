@@ -6,9 +6,9 @@
 
 #include "http_request.h"
 
-#define MAX_CACHE_SIZE 2
+#define MAX_CACHE_SIZE 20
 #define MAX_URL_LEN 256
-#define CACHE_BUFFER_SIZE (1024 * 1024 * 500)  // 500 MB
+#define CACHE_BUFFER_SIZE (1024 * 1024 * 501)  // 501 MB
 
 typedef struct {
   char url[MAX_URL_LEN];
