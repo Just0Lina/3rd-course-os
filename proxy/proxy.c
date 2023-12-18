@@ -134,16 +134,15 @@ void* fetchAndCacheData(void* arg) {
   char* ref = get_refer_url(request);
   add_to_cache(cache, ref, record);
 
-  printf("Data added to cache with size %ld\n\n", record->size);
-
   printf(ANSI_COLOR_MAGENTA "Sending data to client...\n" ANSI_COLOR_RESET);
-
-  send_header_with_data(client_socket, get_data_from_cache(cache, ref));
+  printf("%s\n", ref);
+  MemStruct* mem = get_data_from_cache(cache, ref);
+  send_header_with_data(client_socket, mem);
   printf(ANSI_COLOR_MAGENTA "Data sent to client.\n" ANSI_COLOR_RESET);
   close(client_socket);
   close(dest_socket);
   sem_post(&thread_semaphore);
-
+  free(ref);
   return NULL;
 }
 

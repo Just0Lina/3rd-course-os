@@ -10,6 +10,7 @@ MemStruct* get_data_from_cache(Cache* cache, const char* url) {
       return cache->cache[i].data;
     }
   }
+
   return NULL;
 }
 void destroy_cache(Cache* cache) {
@@ -36,7 +37,6 @@ void add_to_cache(Cache* cache, char* url, MemStruct* data) {
       printf(ANSI_COLOR_YELLOW
              "Not add to cache url (already in) : |%s| \n" ANSI_COLOR_RESET,
              url);
-      free(url);
       free(data->memory);
       free(data);
       pthread_mutex_unlock(&cache_mutex);
@@ -48,7 +48,6 @@ void add_to_cache(Cache* cache, char* url, MemStruct* data) {
            "Add to cache url (count < max) : |%s| \n" ANSI_COLOR_RESET,
            url);
     strcpy(cache->cache[cache->count].url, url);
-    free(url);
     cache->cache[cache->count].data = data;
     cache->cache[cache->count].count = 1;
     cache->count++;
@@ -67,7 +66,6 @@ void add_to_cache(Cache* cache, char* url, MemStruct* data) {
       }
     }
     strcpy(cache->cache[minInd].url, url);
-    free(url);
     free(cache->cache[minInd].data);
     cache->cache[minInd].data = data;
     cache->cache[minInd].count = 1;
