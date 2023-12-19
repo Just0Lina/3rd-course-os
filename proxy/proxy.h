@@ -1,5 +1,6 @@
 #ifndef PROXY_H
 #define PROXY_H
+#include <errno.h>
 #include <netinet/in.h>
 #include <semaphore.h>
 #include <stdio.h>

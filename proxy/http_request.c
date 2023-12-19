@@ -15,7 +15,7 @@ int connect_to_remote(char* host) {
   if (dest_socket == -1) {
     printf(ANSI_COLOR_RED
            "Error while creating remote server socket\n" ANSI_COLOR_RESET);
-    freeaddrinfo(res0);  // Potential leak
+    freeaddrinfo(res0);
     return -1;
   }
 
